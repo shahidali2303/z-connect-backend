@@ -23,16 +23,16 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("callended");
   });
 
-  // socket.on("calluser", ({ userToCall, signalData, from, name }) => {
-  //   io.to(userToCall).emit("calluser", { signal: signalData, from, name });
-  // });
-  socket.on("callUser", (data) => {
-    io.to(data.userToCall).emit("callUser", {
-      signal: data.signalData,
-      from: data.from,
-      name: data.name,
-    });
+  socket.on("calluser", ({ userToCall, signalData, from, name }) => {
+    io.to(userToCall).emit("calluser", { signal: signalData, from, name });
   });
+  // socket.on("callUser", (data) => {
+  //   io.to(data.userToCall).emit("callUser", {
+  //     signal: data.signalData,
+  //     from: data.from,
+  //     name: data.name,
+  //   });
+  // });
 
   socket.on("answercall", (data) => {
     io.to(data.to).emit("callaccepted", data.signal);
