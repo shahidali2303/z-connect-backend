@@ -1,42 +1,38 @@
-const app = require("express")();
-const server = require("http").createServer(app);
-const cors = require("cors");
+const { Server } = require("socket.io");
 
-const io = require("socket.io")(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-  },
+const io = new Server(8000, {
+  cors: true,
 });
 
-app.use(cors());
-
-const PORT = process.env.PORT || 5000;
-app.get("/", (req, res) => {
-  res.send("Server is running...");
-});
+const emailToSocketIdMap = new Map();
+const socketidToEmailMap = new Map();
 
 io.on("connection", (socket) => {
-  socket.emit("me", socket.id);
-
-  socket.on("disconnect", () => {
-    socket.broadcast.emit("callended");
+  console.log(`Socket Connected`, socket.id);
+  socket.on("room:join", (data) => {
+    const { email, room } = data;
+    emailToSocketIdMap.set(email, socket.id);
+    socketidToEmailMap.set(socket.id, email);
+    io.to(room).emit("user:joined", { email, id: socket.id });
+    socket.join(room);
+    io.to(socket.id).emit("room:join", data);
   });
 
-  socket.on("calluser", ({ userToCall, signalData, from, name }) => {
-    io.to(userToCall).emit("calluser", { signal: signalData, from, name });
+  socket.on("user:call", ({ to, offer }) => {
+    io.to(to).emit("incomming:call", { from: socket.id, offer });
   });
-  // socket.on("callUser", (data) => {
-  //   io.to(data.userToCall).emit("callUser", {
-  //     signal: data.signalData,
-  //     from: data.from,
-  //     name: data.name,
-  //   });
-  // });
 
-  socket.on("answercall", (data) => {
-    io.to(data.to).emit("callaccepted", data.signal);
+  socket.on("call:accepted", ({ to, ans }) => {
+    io.to(to).emit("call:accepted", { from: socket.id, ans });
+  });
+
+  socket.on("peer:nego:needed", ({ to, offer }) => {
+    console.log("peer:nego:needed", offer);
+    io.to(to).emit("peer:nego:needed", { from: socket.id, offer });
+  });
+
+  socket.on("peer:nego:done", ({ to, ans }) => {
+    console.log("peer:nego:done", ans);
+    io.to(to).emit("peer:nego:final", { from: socket.id, ans });
   });
 });
-
-server.listen(PORT, () => console.log(`Server Listning on port ${PORT}`));
